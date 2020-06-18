@@ -1,0 +1,85 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package filter contains utility functions for filtering slices through the
+// distributed application of a filter function.
+//
+// The package is an experiment to see how easy it is to write such things
+// in Go. It is easy, but for loops are just as easy and more efficient.
+//
+// You should not use this package.
+//
+package filter // import "robpike.io/filter"
+
+// Apply takes a slice of type []T and a function of type func(T) T. (If the
+// input conditions are not satisfied, Apply panics.) It returns a newly
+// allocated slice where each element is the result of calling the function on
+// successive elements of the slice.
+func Apply(type T, V)(slice []T, function func(T) V) []V {
+	out := make([]V, 0, len(slice))
+	for _, v := range slice {
+		out = append(out, function(v))
+	}
+	return out
+}
+
+// ApplyInPlace is like Apply, but overwrites the slice rather than returning a
+// newly allocated slice.
+func ApplyInPlace(type T)(slice []T, function func(T) T) {
+	for i := range slice {
+		slice[i] = function(slice[i])
+	}
+}
+
+// Choose takes a slice of type []T and a function of type func(T) bool. (If
+// the input conditions are not satisfied, Choose panics.) It returns a newly
+// allocated slice containing only those elements of the input slice that
+// satisfy the function.
+func Choose(type T)(slice []T, function func(T) bool) []T {
+	return chooseOrDrop(slice, function, false, true)
+}
+
+// Drop takes a slice of type []T and a function of type func(T) bool. (If the
+// input conditions are not satisfied, Drop panics.) It returns a newly
+// allocated slice containing only those elements of the input slice that do
+// not satisfy the function, that is, it removes elements that satisfy the
+// function.
+func Drop(type T)(slice []T, function func(T) bool) []T {
+	return chooseOrDrop(slice, function, false, false)
+}
+
+// ChooseInPlace is like Choose, but overwrites the slice rather than returning
+// a newly allocated slice. Since ChooseInPlace must modify the header of the
+// slice to set the new length, it takes as argument a pointer to a slice
+// rather than a slice.
+func ChooseInPlace(type T)(pointerToSlice *[]T, function func(T) bool) {
+	chooseOrDropInPlace(pointerToSlice, function, true)
+}
+
+// DropInPlace is like Drop, but overwrites the slice rather than returning a
+// newly allocated slice. Since DropInPlace must modify the header of the slice
+// to set the new length, it takes as argument a pointer to a slice rather than
+// a slice.
+func DropInPlace(type T)(pointerToSlice *[]T, function func(T) bool) {
+	chooseOrDropInPlace(pointerToSlice, function, false)
+}
+
+func chooseOrDropInPlace(type T)(slice *[]T, function func(T) bool, truth bool) {
+	*slice = chooseOrDrop(*slice, function, true, truth)
+}
+
+func chooseOrDrop(type T)(slice []T, function func(T) bool, inPlace, truth bool) []T {
+	out := slice[:0]
+	if !inPlace {
+		out = make([]T, 0, len(slice))
+	}
+
+	for _, v := range slice {
+		if function(v) == truth {
+			out = append(out, v)
+		}
+	}
+
+	return out
+}
